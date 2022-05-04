@@ -6,13 +6,6 @@ from requests.auth import HTTPBasicAuth
 from collections import defaultdict
 from datetime import datetime
 
-# def dynamodb_search(hits):
-#     results = []
-#     table = boto3.resource('dynamodb').Table('yelp-restaurants')
-#     for hit in hits:
-#         data = table.query(KeyConditionExpression=Key('id').eq(hit['_id']))
-#         results.extend(data['Items'])
-#     return results
 
 def get_os_data(search_msg):
     OS_HOST = "https://search-events-olistiprnbjai5j6547ry3ixra.us-east-1.es.amazonaws.com/_search?pretty"
@@ -39,7 +32,7 @@ def get_os_data(search_msg):
             matches = [
                 {
                     'match': {
-                        'date': date_msg
+                        'dates': date_msg
                     } 
                 }   
             ]
@@ -47,7 +40,7 @@ def get_os_data(search_msg):
             matches = [
                 {
                     'match': {
-                        'name': search_msg
+                        'name': "*" + search_msg + "*"
                     }
                 }, 
                 {
@@ -57,7 +50,7 @@ def get_os_data(search_msg):
                 }, 
                 {
                     'match': {
-                        'location': search_msg
+                        'locations': search_msg
                     }
                 }
             ]
@@ -70,17 +63,16 @@ def get_os_data(search_msg):
         }
     
     query = {
-        'size': 10, 
+        'size': 12, 
         'query': q
     }
     
     response = requests.request('GET', OS_HOST, data=json.dumps(query), auth=HTTPBasicAuth(OS_HTTP_USER, OS_HTTP_PWD), headers=headers)
     print(json.loads(response.text))
     events = json.loads(response.text)['hits']['hits']
-    print("events: ")
-    print(events)
     if len(search_msg) == 0:
-        events = [{'id': e['_source']['eventID'], 'name': e['_source']['name'], 'image': e['_source']['image']} for e in events]    
+        events_list = [{'id': e['_source']['eventID'], 'name': e['_source']['name'], 'image': e['_source']['image']} for e in events]    
+        events = {'all': events_list}
     else:
         events = categorize_matched_events(events, search_msg)
     return events
@@ -101,22 +93,28 @@ def categorize_matched_events(events, search_msg):
                 matched_events[k].append(item)
     return matched_events
     
-# def get_db_data(event_ids): 
-#     table = boto3.resource('dynamodb').Table('events')
-#     events = defaultdict(lambda: list())
-#     for k in event_ids:
-#         for id in event_ids[k]:
-#             events[k].append(table.query(KeyConditionExpression=Key('id').eq(id)))
-#     return events
 
+def get_user_dynamo(user_name):
+    print("attempting to get username")
+    table = boto3.resource('dynamodb').Table('user-table')
+    data = table.query(KeyConditionExpression=Key('username').eq(user_name))
+    print("data: ")
+    print(data)
+    if data['Items']:
+        return [data['Items'][0]]
+    return list()
+    
     
 def lambda_handler(event, context):
     # TODO implement
     # Getting search keyword from event['key']
-    events = get_os_data(event['key'])
-    # events = get_db_data(event_ids)
+    key = event['key'].lower()
+    events = get_os_data(key)
+    users = list()
+    if key:
+        users = get_user_dynamo(key)
     
     return {
         'statusCode': 200,
-        'body': events
+        'body': {'events': events, 'users': users}
     }

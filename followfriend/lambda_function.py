@@ -5,9 +5,9 @@ from boto3.dynamodb.conditions import Key
 
 def lambda_handler(event, context):
     # TODO implement
-
+    print(event)
     username=event['username']
-    friendName=event['friendName']
+    friendName=event['friendname']
     
     print(event)
     
