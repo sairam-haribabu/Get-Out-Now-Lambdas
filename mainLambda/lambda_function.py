@@ -40,7 +40,7 @@ def get_os_data(search_msg):
             matches = [
                 {
                     'match': {
-                        'name': "*" + search_msg + "*"
+                        'name': search_msg
                     }
                 }, 
                 {
@@ -50,9 +50,14 @@ def get_os_data(search_msg):
                 }, 
                 {
                     'match': {
-                        'locations': search_msg
+                        'location': search_msg
                     }
-                }
+                }, 
+                # {
+                #     'match': {
+                #         'aliases': search_msg
+                #     }
+                # }
             ]
         
         q = {
@@ -75,6 +80,8 @@ def get_os_data(search_msg):
         events = {'all': events_list}
     else:
         events = categorize_matched_events(events, search_msg)
+    print("RETURNING EVENTS")
+    print(events)
     return events
     
     
@@ -90,6 +97,8 @@ def categorize_matched_events(events, search_msg):
                     'name': e['_source']['name'], 
                     'image': e['_source']['image']
                 }
+                # if k == "aliases": 
+                #     k = "name"
                 matched_events[k].append(item)
     return matched_events
     
@@ -97,7 +106,9 @@ def categorize_matched_events(events, search_msg):
 def get_user_dynamo(user_name):
     print("attempting to get username")
     table = boto3.resource('dynamodb').Table('user-table')
-    data = table.query(KeyConditionExpression=Key('username').eq(user_name))
+    data = table.query(
+        KeyConditionExpression=Key('username').eq(user_name)
+    )
     print("data: ")
     print(data)
     if data['Items']:
@@ -113,6 +124,7 @@ def lambda_handler(event, context):
     users = list()
     if key:
         users = get_user_dynamo(key)
+        print("users",users)
     
     return {
         'statusCode': 200,
