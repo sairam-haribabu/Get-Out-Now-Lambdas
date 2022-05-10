@@ -2,19 +2,30 @@ import json
 import boto3
 from boto3.dynamodb.conditions import Key
 
+table = boto3.resource('dynamodb').Table('user-table')
+
+
+def get_user_db_data(userName): 
+    result=table.query(KeyConditionExpression=Key('username').eq(userName))
+    return result
+
 
 def lambda_handler(event, context):
-    # TODO implement
     print(event)
     username=event['username']
     friendName=event['friendname']
     
-    print(event)
+    result = get_user_db_data(username)
+    friendResult = get_user_db_data(friendName)
+    print(result, friendResult)
     
-    table = boto3.resource('dynamodb').Table('user-table')
-    result=table.query(KeyConditionExpression=Key('username').eq(username))
-    print(result)
-    result["Items"][0]['data']['friends'].append(friendName)
+    friendData = {
+        'username': friendName, 
+        'name': friendResult["Items"][0]['data']['name'], 
+        'photo': friendResult["Items"][0]['data']['photo']
+    }
+    
+    result["Items"][0]['data']['friends'].append(friendData)
 
     result = table.update_item(
         Key={
